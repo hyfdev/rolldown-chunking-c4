@@ -1,72 +1,98 @@
 # rolldown-chunking-c4
 
-Rolldown 的 chunk 生成流程，两个版本画在一起：今天的实现，和分层之后的实现。
-模型用 [LikeC4](https://likec4.dev) 写，图上的文字是英文。
+**https://hyfdev.github.io/rolldown-chunking-c4/**
 
-今天那一版对照 rolldown `main`，commit `6a54a0531`。
+Rolldown's chunk generation modelled twice: what `main` does today, and the
+intended layering. Written in [LikeC4](https://likec4.dev).
 
-## 看图
+The `now` model is read from rolldown `main`, commit `6a54a0531`.
+
+## Viewing it locally
 
 ```bash
-npm install     # 首次
+npm install
 npm run dev     # http://localhost:5173
 ```
 
-改 `src/*.c4` 会热更新。点节点看完整说明——节点框里的文字会被截断，说明只在侧栏完整。
+Editing `src/*.c4` hot-reloads. Click a node for its full text — node boxes
+truncate, the details panel does not.
 
-## 两个视图
+## Two views
 
-| 视图 | 内容 |
+| View | Content |
 | --- | --- |
-| `index` | 上下对比：上面今天，下面分层之后，都从左往右 |
-| `proposal_only` | 只看分层之后的流程 |
+| `index` | Today on top, the intended model below, both left to right |
+| `proposal_only` | The intended model on its own |
 
-## 图上的颜色
+## Colours
 
-| 颜色 | 标记 | 含义 |
+| Colour | Marker | Meaning |
 | --- | --- | --- |
-| 红 | `back-edge` | 跨了分层。两种形态：后面的步骤使前面的失效或反过来约束它（箭头往回指），或者可选优化喂给强制放置（箭头往前指） |
-| 橙 | `own-judgment` | 自己回答"哪个 chunk import 哪个 chunk"，不读同一份定义；或者判断的范围小于它改动的范围 |
-| 橙 | `direct-write` | 直接在共享状态上赋值，没有值表示"一次修改" |
-| 绿 | `bounded-loop` | 有回路，但是局部的：单调、有上界、中间态不外流 |
+| red | `back-edge` | The layering is crossed. Either a later step invalidates or constrains an earlier one (arrow points back), or an optional optimization feeds a required placement step (arrow points forward) |
+| amber | `own-judgment` | Answers "which chunk imports which" its own way instead of reading one shared definition, or runs a judgment narrower than what it changes |
+| amber | `direct-write` | Assigns fields on shared state directly; no value stands for "one change" |
+| green | `bounded-loop` | A loop, but a local one: monotone, bounded, nothing half-done escapes |
 
-标题里的 `(strict)` 表示这一步只在 `output.strictExecutionOrder` 打开时存在，而它默认是关的。
+`(strict)` in a title marks a step that exists only under
+`output.strictExecutionOrder`, which is off by default.
 
-## 一眼要看到的
+## What the two rows are meant to show
 
-**上面一行**：四个橙色小方块是四份各自为政的答案——`avoidRedundantChunkLoads` 自己的 atom 图、
-`mergeCommonChunks` 自己的临时图、runtime 并入的按需遍历、lowering 之后的真实边。
-共用的那份 `ChunkLoadGraph` 是最右边一个节点，封存之后才算出来。
-圆柱形那个节点收着十条写入边：每个写入者都直接在它上面赋值。
+**Top row.** Four amber boxes are four separate answers to the same question —
+the atom graph `avoidRedundantChunkLoads` builds, the temporary graph
+`mergeCommonChunks` builds, the reachability walk runtime merging does, and the
+real post-lowering edges. The shared `ChunkLoadGraph` is the last node on the
+right, computed after sealing, which is to say after every judgment above has
+already run against its own answer. The cylinder collects the direct writes:
+every writer assigns fields on it.
 
-**下面一行**：没有跨分层的东西。`ChunkLoadGraph` 紧跟在放置之后算出来，所有判断都读它。
-每次改动都提给同一个判断，唯一往回指的箭头是那个判断把通过的改动落到 placement 上（绿色）。
+**Bottom row.** No crossing of the layering. `ChunkLoadGraph` is computed right
+after placement and read by every judgment. Every change to the placement is a
+value proposed to one judge, and the only arrow that runs backwards is that
+judge applying an accepted change.
 
-同一个概念在两行用同一个名字，位置不同——这就是要看的东西。比如 `Compute load sets` 和
-`Automatic code splitting`：今天那行两者之间夹着三样东西，其中 `avoidRedundantChunkLoads` 是可选的
-而且改写了 load set；分层之后两者相邻，四条放置规则并列进同一次划分，manual 对它匹配到的模块优先。
+The same concept keeps the same name in both rows, so the interesting part is
+where a name sits. `Compute load sets` and `Automatic code splitting`, for
+instance: today three things run between them, and one of them is optional and
+rewrites the load sets; in the intended model only manual code splitting sits
+between them, and it has to, because a manual group that fails its size rules
+hands its modules back.
 
-## 文件
+## Files
 
 ```
-src/spec.c4        记号：元素种类、标记、关系种类
-src/1-today.c4     今天的流程
-src/2-proposal.c4  分层之后的流程
-src/views.c4       两个视图
+src/spec.c4        notation: element kinds, markers, relationship kinds
+src/1-today.c4     what main does
+src/2-proposal.c4  the intended layering
+src/views.c4       the two views
 ```
 
-`index` 视图里 `include` 的顺序是反的（`proposed.*, now.*`），因为渲染时后列的排在上面。
+In `index` the `include` order is reversed (`proposed.*, now.*`) because the
+row listed last renders on top.
 
-## 其它命令
+## Commands
 
 ```bash
-npm run validate   # 语法与引用检查
-npm run fmt        # 格式化
-npm run png        # 导出 out/*.png
+npm run validate   # syntax and references
+npm run fmt        # format
+npm run png        # export out/*.png
 ```
 
-`npm run png` 用 headless chromium 渲染，首次要先装浏览器：
-`./node_modules/.bin/playwright install chromium-headless-shell`。
-它的画布在 16384px 处截断。`index` 视图用 `size sm` 把节点画小，内容宽度约 14.2k，
-还有两列左右的余量；再加节点接近这条线时，导出的图右端会被切，`npm run dev` 不受限制。
-`npm run dev` 没有这个限制。
+`npm run png` renders through a headless chromium; the first run needs
+`./node_modules/.bin/playwright install chromium-headless-shell`. Its canvas
+clips at 16384px. The `index` view uses `size sm` to keep the content around
+15.6k wide, which leaves roughly half a column of headroom; past that the right
+edge of the export is cut. `npm run dev` has no such limit.
+
+## Provenance
+
+The models were written by reading rolldown's source at `6a54a0531`. The
+descriptions are an outside reading of that code, not a maintainer's statement
+of intent.
+
+One premise the intended model rests on is not verified: that the wrapping
+analysis only ever changes the wrap set and never module ownership. What was
+read supports it — the trigger file adds a chunk holding no module and changes
+entry routing — but `order_wrapping.rs` was not read exhaustively. If that
+premise fails, wrapping feeds back into placement and the loop in the bottom
+row stops being a local one.
