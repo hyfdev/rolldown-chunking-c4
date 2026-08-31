@@ -135,7 +135,9 @@ model {
       description '
         Runs before wrapping, so the demand it sees is incomplete.
 
-        Both cascades take the branch that runs no check first.
+        The first of two decisions about where the runtime ends up, and the
+        wrapping analysis runs between them. Both cascades take the branch that
+        runs no check first.
       '
     }
 
@@ -199,6 +201,19 @@ model {
       '
     }
 
+    t_runtime_sweep = writer '③ Drop the runtime if nothing needs it' {
+      #moved
+      #back-edge
+      description '
+        The second decision about the runtime, after wrapping, at a different time.
+
+        So whether the runtime survives is answered in two places with the wrapping
+        analysis in between: merged into a consumer before it, dropped after. When it
+        drops, its chunk can disappear, which makes the execution order assigned
+        earlier stale — re-deriving that is the private duty of this pass.
+      '
+    }
+
     t_seal = step 'Seal'
 
     t_crosslink = derived '⑤ ChunkLoadGraph' {
@@ -228,7 +243,8 @@ model {
     t_runtime_merge -> t_order_modules
     t_order_modules -> t_order
     t_order -> t_strict_facade
-    t_strict_facade -> t_seal
+    t_strict_facade -> t_runtime_sweep
+    t_runtime_sweep -> t_seal
     t_seal -> t_crosslink
 
     t_entry -[writes]-> t_graph
@@ -242,6 +258,7 @@ model {
     t_runtime_merge -[writes]-> t_graph
     t_strict_facade -[writes]-> t_graph
     t_order_modules -[writes]-> t_graph
+    t_runtime_sweep -[writes]-> t_graph
 
     t_fold -[builds]-> t_d_fold
     t_insert_common -[builds]-> t_d_merge

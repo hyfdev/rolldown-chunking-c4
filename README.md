@@ -68,6 +68,32 @@ rewrites the load sets; in the intended model only manual code splitting sits
 between them, and it has to, because a manual group that fails its size rules
 hands its modules back.
 
+## The optimizations, and that these are all of them
+
+Four passes change the placement for optimization. Everything else that writes
+it is a required rule — entry chunk creation, `preserveModules`, manual and
+automatic code splitting — or the strict trigger facade.
+
+| Pass in `main` | Where it sits |
+| --- | --- |
+| `optimize_dynamic_entry_bits` | ② `avoidRedundantChunkLoads` |
+| `try_insert_common_module_to_exist_chunk` | `mergeCommonChunks: shared modules` |
+| `optimize_facade_entry_chunks` | `mergeCommonChunks: empty facades` |
+| `try_merge_runtime_chunk`, `sweep_unused_runtime_module` | ③ |
+
+The list closes on a check anyone can repeat: grep the generate stage for the
+writes that move a module between chunks, add a chunk, or mark one removed
+(`add_module_to_chunk`, `module_to_chunk[..] =`, `add_chunk`,
+`post_chunk_optimization_operations.insert`). Six files answer, and each write
+belongs to one of the passes above or to a required rule.
+
+③ is the reason the numbering earns its keep. In the intended model it is one
+node: merge the runtime into its consumer, drop it if nothing references it, or
+leave it standalone — one question, asked once, last, because wrapping is what
+completes the demand. Today it is two passes with the wrapping analysis between
+them, and the second one invalidates an execution order the pipeline already
+assigned.
+
 ## Files
 
 ```
