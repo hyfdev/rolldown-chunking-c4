@@ -19,6 +19,11 @@ views {
 
       "(strict)" marks a step that exists only under output.strictExecutionOrder,
       which is off by default.
+
+      A circled number marks a concept that exists in both rows but sits somewhere
+      materially different. Find the same number in the other row to see where it
+      moved: interop position, avoidRedundantChunkLoads, where the runtime ends up,
+      chunkModulesOrder, and ChunkLoadGraph itself.
     '
     include proposed.*, now.*
     autoLayout LeftRight 40 30

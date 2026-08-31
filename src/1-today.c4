@@ -21,7 +21,8 @@ model {
       '
     }
 
-    t_interop = step 'Interop code position (strict)' {
+    t_interop = step '① Interop code position (strict)' {
+      #moved
       #back-edge
       description '
         Computed from a wrap plan that does not hold yet, then the real plan is
@@ -95,7 +96,8 @@ model {
       '
     }
 
-    t_fold = writer 'avoidRedundantChunkLoads' {
+    t_fold = writer '② avoidRedundantChunkLoads' {
+      #moved
       #back-edge #own-judgment
       description '
         Optional, but it runs before the required manual code splitting and
@@ -127,7 +129,8 @@ model {
       '
     }
 
-    t_runtime_merge = writer 'Merge runtime into its consumer' {
+    t_runtime_merge = writer '③ Merge runtime into its consumer' {
+      #moved
       #own-judgment
       description '
         Runs before wrapping, so the demand it sees is incomplete.
@@ -160,7 +163,8 @@ model {
       description 'Real edges, but only the trigger-file decision reads them.'
     }
 
-    t_order_modules = writer 'chunkModulesOrder' {
+    t_order_modules = writer '④ chunkModulesOrder' {
+      #moved
       #back-edge
       #own-judgment
       description '
@@ -197,7 +201,8 @@ model {
 
     t_seal = step 'Seal'
 
-    t_crosslink = derived 'ChunkLoadGraph' {
+    t_crosslink = derived '⑤ ChunkLoadGraph' {
+      #moved
       description '
         Computed only here, after sealing.
 

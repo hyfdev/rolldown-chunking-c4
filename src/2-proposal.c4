@@ -24,7 +24,8 @@ model {
       description 'Modules, symbol references, side effects, what is included.'
     }
 
-    p_interop = facts 'Interop code position' {
+    p_interop = facts '① Interop code position' {
+      #moved
       description '
         Where generated glue goes: at the module that imports, or beside the module
         it converts. Decided from the link facts alone.
@@ -110,7 +111,8 @@ model {
 
     // ---------------- the computed view ----------------
 
-    p_loadgraph = derived 'ChunkLoadGraph' {
+    p_loadgraph = derived '⑤ ChunkLoadGraph' {
+      #moved
       description '
         Which file imports which file, computed from the placement and the link
         facts. Nobody owns it and nobody may edit it. One definition, read by every
@@ -130,7 +132,8 @@ model {
       '
     }
 
-    p_fold = writer 'avoidRedundantChunkLoads' {
+    p_fold = writer '② avoidRedundantChunkLoads' {
+      #moved
       description '
         Proposes a merge: a dynamic entry whose modules every importer already loads
         does not need a chunk of its own.
@@ -171,7 +174,8 @@ model {
       '
     }
 
-    p_resort = step 'chunkModulesOrder' {
+    p_resort = step '④ chunkModulesOrder' {
+      #moved
       description '
         The final module order inside each chunk: sort by module id within whatever
         ordering constraints are left.
@@ -195,7 +199,8 @@ model {
       '
     }
 
-    p_runtime_merge = writer 'Settle where the runtime lives' {
+    p_runtime_merge = writer '③ Settle where the runtime lives' {
+      #moved
       description '
         Proposes the last change: merge the runtime into its only consumer, drop it
         if nothing references it, or leave it standalone.

@@ -36,6 +36,11 @@ truncate, the details panel does not.
 `(strict)` in a title marks a step that exists only under
 `output.strictExecutionOrder`, which is off by default.
 
+A circled number marks a concept that exists in both rows but sits somewhere
+materially different — find the same number in the other row to see where it
+moved. ① interop code position, ② `avoidRedundantChunkLoads`, ③ where the
+runtime ends up, ④ `chunkModulesOrder`, ⑤ `ChunkLoadGraph`.
+
 ## What the two rows are meant to show
 
 **Top row.** Four amber boxes are four separate answers to the same question —

@@ -57,6 +57,12 @@ specification {
     color #f08c00
   }
 
+  tag moved {
+    // The same concept exists in both models but sits somewhere materially
+    // different. Look for the twin chip in the other row.
+    color #4c6ef5
+  }
+
   tag bounded-loop {
   // A loop, but a local one: monotone, bounded, nothing half-done escapes.
     color #2f9e44
@@ -72,8 +78,8 @@ specification {
   }
 
   relationship writes {
-    line solid
-    color indigo
+    line dashed
+    color muted
   }
 
   relationship feedback {
@@ -87,4 +93,5 @@ specification {
     line solid
     color green
   }
+
 }
