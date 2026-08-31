@@ -12,10 +12,11 @@ views {
       right, computed after sealing. The storage node collects the direct writes:
       every writer assigns fields on it, and no value stands for one change.
 
-      Bottom row: no crossing of the layering. ChunkLoadGraph is computed right
-      after placement and read by every judgment. Every change is proposed to one
-      judge, and the only arrow that runs backwards is that judge applying an
-      accepted change (green).
+      Bottom row: no crossing of the layering. The rules write BaseChunkPlacement
+      once and never touch it again; from there the placement moves only as
+      ChunkPlacement, whose only two writers are green — one judgment applying a
+      change it accepted. ChunkLoadGraph is computed from the placement and read by
+      every judgment.
 
       "(strict)" marks a step that exists only under output.strictExecutionOrder,
       which is off by default.
@@ -50,7 +51,7 @@ views {
     style proposed.p_loadgraph {
       color sky
     }
-    style proposed.p_placement {
+    style proposed.p_placement, proposed.p_current {
       color primary
     }
   }
@@ -58,9 +59,10 @@ views {
   view proposal_only of proposed {
     title 'After separating the layers'
     description '
-      link facts -> interop code position -> load sets -> entry chunks, manual and
-      automatic code splitting, runtime chunk -> BaseChunkPlacement -> ChunkLoadGraph
-      -> every change proposed to one judge -> seal -> derived facts.
+      link facts -> interop code position -> load sets -> entry chunks, runtime chunk,
+      manual and automatic code splitting -> BaseChunkPlacement, written once ->
+      ChunkPlacement, which only an accepted change advances -> ChunkLoadGraph,
+      computed from it and read by every judgment -> seal -> derived facts.
 
       "(strict)" marks a step that exists only under output.strictExecutionOrder.
     '
@@ -69,6 +71,7 @@ views {
 
     style * {
       color slate
+      size sm
     }
     style element.tag = #bounded-loop {
       color green
@@ -76,7 +79,7 @@ views {
     style p_loadgraph {
       color sky
     }
-    style p_placement {
+    style p_placement, p_current {
       color primary
     }
   }

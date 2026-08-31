@@ -13,9 +13,10 @@ model {
 
   proposed = step 'The intended model' {
     description '
-      One direction. ChunkLoadGraph is computed from the placement and read by every
-      judgment. Every change to the placement is a value, judged before it applies.
-      The one loop is local: the set of accepted changes only grows, and it is bounded.
+      One direction. The rules write a base placement once; after that the placement
+      moves only through changes one judgment accepted. ChunkLoadGraph is computed
+      from it and read by every judgment. The one loop is local: the set of accepted
+      changes only grows, and it is bounded.
     '
 
     // ---------------- input ----------------
@@ -100,12 +101,24 @@ model {
 
     p_placement = state 'BaseChunkPlacement' {
       description '
-        Every included module in exactly one chunk, plus entry routing: which chunk
-        serves each entry, possibly one that holds no module.
+        Written once, by the rules above, and never written again.
 
-        Produced once. After that it changes only through an accepted change.
-        As precise as the rules allow: later steps can merge and drop but never
-        split, so imprecision here throws options away permanently.
+        Every included module in exactly one chunk, plus entry routing: which chunk
+        serves each entry, possibly one that holds no module. The finest partition
+        anyone gets: every change after this merges or reroutes, never splits, so
+        imprecision here throws options away permanently.
+      '
+    }
+
+    p_current = state 'ChunkPlacement' {
+      description '
+        The placement as it stands: starts as the base, advances one accepted change
+        at a time.
+
+        Two writers, and both are the same judgment. Everything downstream that says
+        "the placement" means this one. The base stays beside it, so what a change
+        did is the difference between two values rather than a field that was
+        overwritten.
       '
     }
 
@@ -114,9 +127,9 @@ model {
     p_loadgraph = derived '⑤ ChunkLoadGraph' {
       #moved
       description '
-        Which file imports which file, computed from the placement and the link
+        Which file imports which file, computed from ChunkPlacement and the link
         facts. Nobody owns it and nobody may edit it. One definition, read by every
-        judgment. Recomputed whenever the placement changes.
+        judgment. Recomputed whenever the placement advances.
       '
     }
 
@@ -222,7 +235,11 @@ model {
 
     // ---------------- output ----------------
 
-    p_seal = step 'Seal'
+    p_seal = step 'Seal' {
+      description '
+        The placement stops moving. Everything after this reads it; nothing writes it.
+      '
+    }
     p_derived_facts = step 'Derived facts: names, hashes, execution order' {
       description '
         Computed from the sealed graph, once.
@@ -252,8 +269,9 @@ model {
     p_runtime -> p_manual 'the runtime is claimed first'
     p_manual -> p_auto2 'then whatever the groups left'
     p_auto2 -> p_placement
+    p_placement -> p_current 'the starting value'
 
-    p_placement -> p_loadgraph
+    p_current -> p_loadgraph
     p_link -> p_loadgraph 'symbol relationships'
 
     p_loadgraph -> p_fold 'read to decide what to propose'
@@ -263,7 +281,7 @@ model {
     p_insert_common -> p_check 'proposes'
     p_facade -> p_check 'proposes'
     p_check -[reads]-> p_loadgraph 'judged against the implied graph'
-    p_check -[gated]-> p_placement 'applied only if accepted'
+    p_check -[gated]-> p_current 'applied only if accepted'
 
     p_check -> p_order 'once no change is left to propose'
     p_order -[reads]-> p_loadgraph
@@ -273,7 +291,8 @@ model {
     p_strict_facade -> p_check_late 'proposes'
     p_runtime_merge -> p_check_late 'proposes'
     p_check_late -[reads]-> p_loadgraph 'judged against the implied graph'
-    p_check_late -[gated]-> p_seal 'applied only if accepted'
+    p_check_late -[gated]-> p_current 'applied only if accepted'
+    p_check_late -> p_seal 'once no change is left to propose'
     p_seal -> p_resort
     p_resort -> p_derived_facts
     p_derived_facts -> p_import_map

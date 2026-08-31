@@ -51,10 +51,15 @@ right, computed after sealing, which is to say after every judgment above has
 already run against its own answer. The cylinder collects the direct writes:
 every writer assigns fields on it.
 
-**Bottom row.** No crossing of the layering. `ChunkLoadGraph` is computed right
-after placement and read by every judgment. Every change to the placement is a
-value proposed to one judge, and the only arrow that runs backwards is that
-judge applying an accepted change.
+**Bottom row.** No crossing of the layering. The splitting rules write
+`BaseChunkPlacement` once and never touch it again — the finest partition anyone
+gets, since every change after it merges or reroutes and none of them splits.
+From there the placement moves only as `ChunkPlacement`, and its only two
+writers are the same judgment applying a change it accepted. `ChunkLoadGraph` is
+computed from the placement and read by every judgment. Today's row has no
+counterpart to the base at all: there is one mutable structure and eleven
+writers assign fields on it, so no value stands for "the placement the rules
+produced".
 
 The same concept keeps the same name in both rows, so the interesting part is
 where a name sits. `Compute load sets` and `Automatic code splitting`, for
@@ -85,9 +90,10 @@ npm run png        # export out/*.png
 
 `npm run png` renders through a headless chromium; the first run needs
 `./node_modules/.bin/playwright install chromium-headless-shell`. Its canvas
-clips at 16384px. Both views use `size sm` and a tightened `autoLayout`, which
-keeps `index` around 14.8k wide; past the limit the right edge of the export is
-cut. `npm run dev` has no such limit.
+clips at 16384px. Both views use `size sm` and a tightened `autoLayout`. Today
+`index` renders 15.6k wide and `proposal_only` 14.2k, so `index` has little room
+left — adding a rank to it will cut the right edge off the export. `npm run dev`
+has no such limit.
 
 ## Provenance
 
