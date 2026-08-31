@@ -27,7 +27,7 @@ views {
       chunkModulesOrder, and ChunkLoadGraph itself.
     '
     include proposed.*, now.*
-    autoLayout LeftRight 40 30
+    autoLayout LeftRight 14 14
 
     style * {
       color slate

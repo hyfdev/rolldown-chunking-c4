@@ -103,10 +103,28 @@ model {
       description '
         Written once, by the rules above, and never written again.
 
-        Every included module in exactly one chunk, plus entry routing: which chunk
-        serves each entry, possibly one that holds no module. The finest partition
-        anyone gets: every change after this merges or reroutes, never splits, so
-        imprecision here throws options away permanently.
+        The finest state anyone gets: every change after this merges or reroutes, so
+        an option missing here cannot be recovered. That, not "every module in
+        exactly one chunk", is the property that makes it the base. It also decides
+        entry routing: which chunk serves each entry, possibly one holding no module.
+      '
+    }
+
+    p_inline = writer 'inlineCommonChunks' {
+      description '
+        A common chunk that does not earn a file dissolves into its consumers, and
+        every module still evaluates exactly once.
+
+        Not a change to the placement: it is how the working placement is derived
+        from the base. That is the whole of the distinction between sitting here and
+        sitting inside the base — it is optional, and a base that changes with
+        configuration is not a fixed reference for anything. The same defect the
+        today row marks at ②, an optional pass upstream of a required one.
+
+        At this position it decides from the base and the load sets, before any load
+        graph exists, so the graph is computed once on a placement that is not about
+        to dissolve. The cost of that: it coarsens before any judgment has run, and
+        the options it drops are ones the merges below can never get back.
       '
     }
 
@@ -269,7 +287,8 @@ model {
     p_runtime -> p_manual 'the runtime is claimed first'
     p_manual -> p_auto2 'then whatever the groups left'
     p_auto2 -> p_placement
-    p_placement -> p_current 'the starting value'
+    p_placement -> p_inline
+    p_inline -> p_current 'the starting value'
 
     p_current -> p_loadgraph
     p_link -> p_loadgraph 'symbol relationships'

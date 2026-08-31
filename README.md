@@ -81,7 +81,15 @@ automatic code splitting — or the strict trigger facade.
 | `optimize_facade_entry_chunks` | `mergeCommonChunks: empty facades` |
 | `try_merge_runtime_chunk`, `sweep_unused_runtime_module` | ③ |
 
-The list closes on a check anyone can repeat: grep the generate stage for the
+The intended row carries one more, `inlineCommonChunks`, which `main` does not
+have: a common chunk that does not earn a file dissolves into its consumers,
+with every module still evaluating exactly once. It sits between
+`BaseChunkPlacement` and `ChunkPlacement` — not as a change to the placement but
+as how the working placement is derived from the base. It is optional, and a
+base that changes with configuration is not a fixed reference for anything,
+which is the same defect ② marks in today's row.
+
+The list of passes in `main` closes on a check anyone can repeat: grep the generate stage for the
 writes that move a module between chunks, add a chunk, or mark one removed
 (`add_module_to_chunk`, `module_to_chunk[..] =`, `add_chunk`,
 `post_chunk_optimization_operations.insert`). Six files answer, and each write
@@ -116,10 +124,12 @@ npm run png        # export out/*.png
 
 `npm run png` renders through a headless chromium; the first run needs
 `./node_modules/.bin/playwright install chromium-headless-shell`. Its canvas
-clips at 16384px. Both views use `size sm` and a tightened `autoLayout`. Today
-`index` renders 15.6k wide and `proposal_only` 14.2k, so `index` has little room
-left — adding a rank to it will cut the right edge off the export. `npm run dev`
-has no such limit.
+clips at 16384px. Both views use `size sm`, and `index` a tightened
+`autoLayout`. It renders 16.2k wide against that 16.4k ceiling, so it is one
+node away from a cut right edge. Rank separation is spent: dropping it from
+`40 30` to `14 14` bought 210px, because the width is node width times rank
+count, not the gaps. The levers left are fewer ranks or a narrower node size.
+`npm run dev` has no such limit.
 
 ## Provenance
 
