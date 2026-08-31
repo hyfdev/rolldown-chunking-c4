@@ -1,0 +1,251 @@
+// Today's pipeline, as of rolldown main 6a54a0531.
+//
+// Node titles are shared with the `proposed` model wherever it is the same
+// concept. "(strict)" marks a step that only exists under
+// output.strictExecutionOrder, which is off by default.
+
+model {
+
+  now = step 'Today' {
+    description '
+      Four optional optimizations each answer "which chunk imports which" their own
+      way. The shared ChunkLoadGraph is only computed after sealing. Every writer
+      assigns fields on one shared structure directly.
+    '
+
+    t_link = facts 'link facts' {
+      description '
+        Modules, symbol references, side effects, what is included, and each
+        module load dependencies. The last one is written in the final link step,
+        so placement has no earlier point to move to.
+      '
+    }
+
+    t_interop = step 'Interop code position (strict)' {
+      #back-edge
+      description '
+        Computed from a wrap plan that does not hold yet, then the real plan is
+        forced to honour it.
+
+        It decides which barrels are pure forwarding waypoints and whether a
+        CommonJS re-export has its conversion code moved next to the definition;
+        reachability reads the answer. It depends on the module graph alone, so
+        nothing forces it to live inside the lowering machinery. Empty unless
+        output.strictExecutionOrder is on.
+      '
+    }
+
+    t_graph = state 'One mutable chunk structure' {
+      #direct-write
+      description '
+        Every writer below assigns its fields directly.
+
+        Chunk table, module-to-chunk, load set, chunk kind, entry routing.
+        No value stands for "one change", so nothing can stand for
+        "this change invalidated those judgments" either.
+      '
+    }
+
+    t_entry = writer 'Entry chunks' {
+      description 'One chunk per entry.'
+    }
+
+    t_auto1 = step 'Compute load sets' {
+      description '
+        Which entries load each module.
+
+        Shared input: manual code splitting reads it for minShareCount and
+        entriesAware, and automatic code splitting reads it to form chunks.
+        Three steps run before the rule that consumes it, one of them optional,
+        and that one rewrites this result.
+      '
+    }
+
+    t_runtime_extract = writer 'Runtime chunk' {
+      #back-edge
+      description '
+        Its position is fixed here, on demand that is not complete yet.
+
+        Wrapping, much later, creates runtime demand that does not exist at this
+        point.
+      '
+    }
+
+    t_manual = writer 'Manual code splitting' {
+      description '
+        Reads load sets that an optional optimization already overwrote.
+
+        minShareCount and entriesAware subgroups see the numbers
+        avoidRedundantChunkLoads produced, not plain reachability.
+      '
+    }
+
+    t_auto2 = writer 'Automatic code splitting' {
+      #own-judgment #back-edge
+      description '
+        With chunkOptimization on (the default) it does not create the chunks.
+
+        Same load set, same chunk. A load set with no chunk yet is
+        only registered in the optimizer temporary graph, and mergeCommonChunks
+        decides whether it becomes a chunk. A required step and an optional
+        optimization are fused into one loop, so under the default config the
+        required result never exists on its own. It also does not know that an
+        entry chunk was emptied by manual code splitting and is now a forwarding
+        shell, so it puts the entry own dependency inside that shell.
+      '
+    }
+
+    t_fold = writer 'avoidRedundantChunkLoads' {
+      #back-edge #own-judgment
+      description '
+        Optional, but it runs before the required manual code splitting and
+        overwrites the load sets that step reads.
+
+        Its cycle judgment is evaluated here, while nothing has been grouped yet.
+        Silently off whenever any module uses top-level await.
+      '
+    }
+
+    t_insert_common = writer 'mergeCommonChunks: shared modules' {
+      #own-judgment
+      description '
+        Asks "after the merge, is the target chunk on a cycle" against its own
+        temporary graph, which is missing the forwarding-shell edge.
+      '
+    }
+
+    t_facade = writer 'mergeCommonChunks: empty facades' {
+      #own-judgment
+      description '
+        Checks three narrow things and never the general one.
+
+        It checks that the target holds no other user entry, that a strict entry
+        signature survives, that the runtime cannot reach the target, and that
+        emitted chunks do not collide on export names. It never asks whether the
+        merge puts the target on a cycle, and nothing stops it from swallowing a
+        chunk the user named. Silently off whenever any module uses top-level await.
+      '
+    }
+
+    t_runtime_merge = writer 'Merge runtime into its consumer' {
+      #own-judgment
+      description '
+        Runs before wrapping, so the demand it sees is incomplete.
+
+        Both cascades take the branch that runs no check first.
+      '
+    }
+
+    t_d_fold = derived 'atom graph of avoidRedundantChunkLoads' {
+      #own-judgment
+      description 'Predicted static import targets, keyed by load set.'
+    }
+    t_d_merge = derived 'temporary graph of mergeCommonChunks' {
+      #own-judgment
+      description '
+        One edge richer than the atom graph, and that extra edge happens to shield
+        a premise the merge never checks.
+      '
+    }
+    t_d_runtime = derived 'reachability walk of runtime merging' {
+      #own-judgment
+      description '
+        Not a graph object: a breadth-first walk over the live chunk structure,
+        following static import records including require, plus one entry-facade
+        hop, skipping chunks already queued for removal.
+      '
+    }
+    t_d_strict = derived 'post-lowering edges (strict)' {
+      #own-judgment
+      description 'Real edges, but only the trigger-file decision reads them.'
+    }
+
+    t_order_modules = writer 'chunkModulesOrder' {
+      #back-edge
+      #own-judgment
+      description '
+        Sorts each chunk modules before the wrapping analysis, then twice more
+        inside it.
+
+        Running first means it cannot know which orders are still constrained, so
+        the module-id path decides that itself: it keeps modules with no import
+        records and no order sensitivity apart from the rest. That is a private
+        answer to the question the wrapping analysis answers properly a few steps
+        later, which is why lowering has to re-sort afterwards.
+      '
+    }
+
+    t_order = step 'Wrapping analysis (strict)' {
+      #back-edge
+      description '
+        Forced to honour the interop assumption made before placement.
+
+        It also creates runtime demand that did not exist when the runtime chunk
+        was placed, and it changes the topology, which makes the metadata computed
+        before it stale — recomputing that is the private duty of whoever changed
+        the shape. Skipped entirely unless output.strictExecutionOrder is on.
+      '
+    }
+
+    t_strict_facade = writer 'Split a trigger file for an entry (strict)' {
+      #own-judgment #back-edge
+      description '
+        Adds a node and changes entry routing after everything else settled.
+        Reads the post-lowering edges to decide.
+      '
+    }
+
+    t_seal = step 'Seal'
+
+    t_crosslink = derived 'ChunkLoadGraph' {
+      description '
+        Computed only here, after sealing.
+
+        Which file imports which file. Every judgment above already ran against its
+        own answer to this question, and only some configurations ever reconcile
+        the two.
+      '
+    }
+
+    t_link -> t_entry
+    t_link -> t_interop
+    t_link -> t_auto1
+    t_interop -> t_auto1 'changes which edges reachability follows'
+    t_entry -> t_auto1
+    t_auto1 -> t_fold
+    t_fold -> t_runtime_extract
+    t_runtime_extract -> t_manual
+    t_manual -> t_auto2
+    t_auto2 -> t_insert_common
+    t_auto2 -> t_facade
+    t_insert_common -> t_runtime_merge
+    t_facade -> t_runtime_merge
+    t_runtime_merge -> t_order_modules
+    t_order_modules -> t_order
+    t_order -> t_strict_facade
+    t_strict_facade -> t_seal
+    t_seal -> t_crosslink
+
+    t_entry -[writes]-> t_graph
+    t_auto1 -[writes]-> t_graph
+    t_fold -[writes]-> t_graph
+    t_runtime_extract -[writes]-> t_graph
+    t_manual -[writes]-> t_graph
+    t_auto2 -[writes]-> t_graph
+    t_insert_common -[writes]-> t_graph
+    t_facade -[writes]-> t_graph
+    t_runtime_merge -[writes]-> t_graph
+    t_strict_facade -[writes]-> t_graph
+    t_order_modules -[writes]-> t_graph
+
+    t_fold -[builds]-> t_d_fold
+    t_insert_common -[builds]-> t_d_merge
+    t_runtime_merge -[builds]-> t_d_runtime
+    t_strict_facade -[builds]-> t_d_strict
+
+    t_fold -[feedback]-> t_manual 'overwrites the load sets it reads'
+    t_auto2 -[feedback]-> t_insert_common 'hands chunk creation to the optimizer'
+    t_interop -[feedback]-> t_order 'the real wrap plan is forced to honour this'
+    t_crosslink -[feedback]-> t_fold 'what this judgment needed, produced only here'
+  }
+}

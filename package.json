@@ -1,0 +1,15 @@
+{
+  "name": "rolldown-chunking-c4",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Rolldown chunking 架构模型（LikeC4）：今天的流程 vs 重新分层之后",
+  "scripts": {
+    "dev": "likec4 start src",
+    "validate": "likec4 validate src",
+    "fmt": "likec4 format src",
+    "png": "likec4 export png -o ./out src"
+  },
+  "devDependencies": {
+    "likec4": "^1.59.2"
+  }
+}

@@ -1,0 +1,274 @@
+// The intended model.
+//
+// Written on its own terms. Node titles are shared with the `now` model wherever
+// it is the same concept, but nothing here is described by contrast with it.
+//
+// Three questions, one place answers each, everyone else only reads:
+//   1. what is in the code         -> link
+//   2. how the code is written out -> lowering
+//   3. which file it goes into     -> placement
+// ChunkLoadGraph is nobody's answer; it is computed from those three.
+
+model {
+
+  proposed = step 'The intended model' {
+    description '
+      One direction. ChunkLoadGraph is computed from the placement and read by every
+      judgment. Every change to the placement is a value, judged before it applies.
+      The one loop is local: the set of accepted changes only grows, and it is bounded.
+    '
+
+    // ---------------- input ----------------
+
+    p_link = facts 'link facts' {
+      description 'Modules, symbol references, side effects, what is included.'
+    }
+
+    p_interop = facts 'Interop code position' {
+      description '
+        Where generated glue goes: at the module that imports, or beside the module
+        it converts. Decided from the link facts alone.
+
+        It decides who owns a symbol, so it decides what reachability follows.
+        It depends on the module graph alone, never on the layout, so it is an input
+        to placement. Whether a CommonJS module behind a barrel can be placed
+        precisely hangs on this.
+      '
+    }
+
+    // ---------------- placement ----------------
+
+    p_auto1 = step 'Compute load sets' {
+      description '
+        Which entries load each module. Shared input to both splitting rules.
+
+        An edge goes to the owner of each referenced binding, resolved through
+        re-exports, and to any module whose evaluation has observable side effects.
+        It does not follow the importee of every import statement.
+        When purity cannot be decided, assume side effects: that is the safe side.
+
+        The same rule answers a build-time question: a re-export module that no
+        consumer reaches and that has no side effects never has to be compiled at
+        all. That is not a separate optimization, it is this rule used earlier.
+      '
+    }
+
+    p_entry = writer 'Entry chunks' {
+      description 'One chunk per entry.'
+    }
+
+    p_manual = writer 'Manual code splitting' {
+      description '
+        The modules a group matches go into that group chunk.
+
+        Takes precedence over the automatic rule for those modules. The two are
+        branches of one partition, not two phases.
+      '
+    }
+
+    p_auto2 = writer 'Automatic code splitting' {
+      description '
+        Same load set, same chunk. One rule, applied once.
+
+        Reads whether an entry chunk still holds its own entry module, so it never
+        puts anything into a chunk that only forwards.
+      '
+    }
+
+    p_runtime = writer 'Runtime chunk' {
+      description '
+        The runtime goes into a chunk of its own.
+
+        Everything may depend on it and it depends on nothing, so while it stays
+        separate an edge into it can never close a cycle. Where it finally lives is
+        settled at the end, once demand is complete.
+      '
+    }
+
+    p_placement = state 'BaseChunkPlacement' {
+      description '
+        Every included module in exactly one chunk, plus entry routing: which chunk
+        serves each entry, possibly one that holds no module.
+
+        Produced once. After that it changes only through an accepted change.
+        As precise as the rules allow: later steps can merge and drop but never
+        split, so imprecision here throws options away permanently.
+      '
+    }
+
+    // ---------------- the computed view ----------------
+
+    p_loadgraph = derived 'ChunkLoadGraph' {
+      description '
+        Which file imports which file, computed from the placement and the link
+        facts. Nobody owns it and nobody may edit it. One definition, read by every
+        judgment. Recomputed whenever the placement changes.
+      '
+    }
+
+    // ---------------- changes to the placement ----------------
+
+    p_check = check 'Judge the change, then apply it' {
+      #bounded-loop
+      description '
+        A change is a value. Judge it against the invariants it can touch — first of
+        all the load graph that change implies — then accept or reject. Rejecting is
+        the safe direction. The loop stays here: the set of accepted changes only
+        grows, and it is bounded.
+      '
+    }
+
+    p_fold = writer 'avoidRedundantChunkLoads' {
+      description '
+        Proposes a merge: a dynamic entry whose modules every importer already loads
+        does not need a chunk of its own.
+      '
+    }
+    p_insert_common = writer 'mergeCommonChunks: shared modules' {
+      description 'Proposes a merge: a shared module joins a chunk that already depends on it.'
+    }
+    p_facade = writer 'mergeCommonChunks: empty facades' {
+      description 'Proposes a merge: a chunk that only forwards joins the chunk it forwards to.'
+    }
+
+    // ---------------- lowering ----------------
+
+    p_order_modules = step 'Base module order inside each chunk' {
+      description '
+        Source evaluation order. The baseline the wrapping analysis reasons against.
+
+        Concatenation order decides evaluation order inside a file, so the analysis
+        needs a definite order to compare with. This one matches source order by
+        construction, which leaves the analysis only the chunk-level deviations to
+        find. Any other order is a change proposed after wrapping, never a choice
+        made here.
+      '
+    }
+
+    p_order = step 'Wrapping analysis' {
+      #bounded-loop
+      description '
+        Which modules must become deferred functions so that execution order holds
+        for this layout.
+
+        Wrapping is what makes a cycle harmless: a top-level read becomes a call.
+        Each round only adds wrappers and the ceiling is every module that can be
+        wrapped, so it terminates; how far below that ceiling it stops is policy.
+        It changes the wrap set only, never module ownership.
+      '
+    }
+
+    p_strict_facade = writer 'Give an entry its own trigger file' {
+      description '
+        Proposes a change to entry routing: when an entry trigger cannot stay inline,
+        it moves into a file that holds no module.
+      '
+    }
+
+    p_resort = step 'chunkModulesOrder' {
+      description '
+        The final module order inside each chunk: sort by module id within whatever
+        ordering constraints are left.
+
+        A derived fact of the sealed placement and the wrap set. It reads which
+        modules a chunk holds, so it runs once every placement change has been
+        applied; and the content hash is taken over the emitted text, whose order
+        this decides, so it runs before the hashes.
+
+        It touches no placement itself. Nothing moves between chunks and the load
+        graph does not change, which is why it is not a change for the placement
+        judgment to see.
+
+        Which constraints are left is an output of the wrapping analysis, so this
+        order satisfies them by construction. Wrapping a module moves its evaluation
+        into a call, so its position stops constraining anything except that its
+        declaration precede an eager caller; when every caller is wrapped too, the
+        constraint disappears. A fully wrapped chunk has no constraints and sorts
+        freely; a partly wrapped one sorts within the freedom that is left.
+        So wrapping more also compresses better.
+      '
+    }
+
+    p_runtime_merge = writer 'Settle where the runtime lives' {
+      description '
+        Proposes the last change: merge the runtime into its only consumer, drop it
+        if nothing references it, or leave it standalone.
+
+        Last, because wrapping is what completes the demand for it.
+      '
+    }
+
+    p_check_late = check 'Judge the change, then apply it' {
+      description '
+        The same judgment, at the second point where changes appear.
+
+        Neither change it sees can invalidate the wrapping analysis that produced
+        them: the trigger file adds a routing chunk and moves no module, and until
+        the runtime is merged an edge into it closes no cycle. So there is no round
+        after this one.
+      '
+    }
+
+    // ---------------- output ----------------
+
+    p_seal = step 'Seal'
+    p_derived_facts = step 'Derived facts: names, hashes, execution order' {
+      description '
+        Computed from the sealed graph, once.
+
+        A chunk name has to be an identity that does not move when its content
+        changes, because a consumer downstream depends on exactly that.
+      '
+    }
+
+    p_import_map = output 'chunkImportMap' {
+      description '
+        Emits a map from each chunk stable key to its hashed filename, so a chunk
+        references its siblings by that key rather than by their hash.
+
+        This is why chunk identity has to be independent of content: one hash
+        changing then invalidates one file instead of cascading into every chunk
+        that imports it.
+      '
+    }
+
+    // ---------------- flow ----------------
+
+    p_link -> p_auto1
+    p_interop -> p_auto1 'decides who owns a symbol'
+    p_auto1 -> p_entry
+    p_auto1 -> p_runtime
+    p_auto1 -> p_manual
+    p_auto1 -> p_auto2
+    p_entry -> p_placement
+    p_manual -> p_placement
+    p_auto2 -> p_placement
+    p_runtime -> p_placement
+
+    p_placement -> p_loadgraph
+    p_link -> p_loadgraph 'symbol relationships'
+
+    p_loadgraph -> p_fold 'read to decide what to propose'
+    p_loadgraph -> p_insert_common
+    p_loadgraph -> p_facade
+    p_fold -> p_check 'proposes'
+    p_insert_common -> p_check 'proposes'
+    p_facade -> p_check 'proposes'
+    p_check -[reads]-> p_loadgraph 'judged against the implied graph'
+    p_check -[gated]-> p_placement 'applied only if accepted'
+
+    p_check -> p_order_modules 'once no change is left to propose'
+    p_order_modules -> p_order
+    p_order -[reads]-> p_loadgraph
+    p_order -> p_strict_facade
+    p_order -> p_runtime_merge
+    p_order -> p_resort 'the ordering constraints that are left'
+    p_strict_facade -> p_check_late 'proposes'
+    p_runtime_merge -> p_check_late 'proposes'
+    p_check_late -[reads]-> p_loadgraph 'judged against the implied graph'
+    p_check_late -[gated]-> p_seal 'applied only if accepted'
+    p_seal -> p_resort
+    p_resort -> p_derived_facts
+    p_derived_facts -> p_import_map
+  }
+}

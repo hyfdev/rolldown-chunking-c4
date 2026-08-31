@@ -1,0 +1,78 @@
+views {
+
+  // Default view: today on top, the proposal below, both left to right.
+  view index {
+    title 'Today vs. after separating the layers'
+    description '
+      Top row: the flow runs left to right. Red marks a crossing of the layering —
+      a later step invalidating or constraining an earlier one, or an optional
+      optimization feeding a required placement step. Amber marks a writer that
+      answers "which chunk imports which" its own way, and the four amber boxes are
+      those four separate answers; the shared ChunkLoadGraph is the last node on the
+      right, computed after sealing. The storage node collects the direct writes:
+      every writer assigns fields on it, and no value stands for one change.
+
+      Bottom row: no crossing of the layering. ChunkLoadGraph is computed right
+      after placement and read by every judgment. Every change is proposed to one
+      judge, and the only arrow that runs backwards is that judge applying an
+      accepted change (green).
+
+      "(strict)" marks a step that exists only under output.strictExecutionOrder,
+      which is off by default.
+    '
+    include proposed.*, now.*
+    autoLayout LeftRight
+
+    style * {
+      color slate
+      size sm
+    }
+    style now, proposed {
+      color muted
+    }
+    style element.tag = #direct-write {
+      color amber
+    }
+    style element.tag = #own-judgment {
+      color amber
+    }
+    style element.tag = #back-edge {
+      color red
+    }
+    style element.tag = #bounded-loop {
+      color green
+    }
+    style proposed.p_loadgraph {
+      color sky
+    }
+    style proposed.p_placement {
+      color primary
+    }
+  }
+
+  view proposal_only of proposed {
+    title 'After separating the layers'
+    description '
+      link facts -> interop code position -> load sets -> entry chunks, manual and
+      automatic code splitting, runtime chunk -> BaseChunkPlacement -> ChunkLoadGraph
+      -> every change proposed to one judge -> seal -> derived facts.
+
+      "(strict)" marks a step that exists only under output.strictExecutionOrder.
+    '
+    include *
+    autoLayout LeftRight
+
+    style * {
+      color slate
+    }
+    style element.tag = #bounded-loop {
+      color green
+    }
+    style p_loadgraph {
+      color sky
+    }
+    style p_placement {
+      color primary
+    }
+  }
+}

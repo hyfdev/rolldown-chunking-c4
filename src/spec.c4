@@ -1,0 +1,90 @@
+// Rolldown chunking — notation.
+//
+// The model covers one span: from "chunks get created" to "the chunk graph is
+// sealed". Two versions sit side by side, `now` and `proposed`. The same concept
+// keeps the same name in both, so a reader can see where a piece of logic moved.
+
+specification {
+
+  element facts {
+    notation 'Read-only fact'
+  }
+
+  element step {
+    notation 'A computation'
+  }
+
+  element writer {
+    notation 'Writes chunk state'
+  }
+
+  element state {
+    notation 'Mutable state'
+    style {
+      shape storage
+    }
+  }
+
+  element derived {
+    notation 'Computed view'
+  }
+
+  element check {
+    notation 'Judges a proposed change'
+  }
+
+  element output {
+    notation 'Artifact'
+  }
+
+  // Markers. All colour on the diagram comes from these plus the view styles.
+
+  tag back-edge {
+  // The layering is crossed. Either a later step invalidates or constrains an
+  // earlier one (arrow points back), or an optional optimization feeds a
+  // required placement step (arrow points forward).
+    color #e03131
+  }
+
+  tag own-judgment {
+  // Answers "which chunk imports which" its own way instead of reading one
+  // shared definition, or runs a judgment too narrow for what it changes.
+    color #f08c00
+  }
+
+  tag direct-write {
+  // Assigns fields on shared state directly. No value stands for "one change".
+    color #f08c00
+  }
+
+  tag bounded-loop {
+  // A loop, but a local one: monotone, bounded, nothing half-done escapes.
+    color #2f9e44
+  }
+
+  relationship reads {
+    line dotted
+  }
+
+  relationship builds {
+    line dotted
+    color amber
+  }
+
+  relationship writes {
+    line solid
+    color indigo
+  }
+
+  relationship feedback {
+    title 'crosses the layering'
+    line dashed
+    color red
+    head onormal
+  }
+
+  relationship gated {
+    line solid
+    color green
+  }
+}
