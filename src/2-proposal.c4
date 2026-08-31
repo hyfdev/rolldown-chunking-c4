@@ -243,14 +243,10 @@ model {
     p_link -> p_auto1
     p_interop -> p_auto1 'decides who owns a symbol'
     p_auto1 -> p_entry
-    p_auto1 -> p_runtime
-    p_entry -> p_manual
+    p_entry -> p_runtime
     p_runtime -> p_manual 'the runtime is claimed first'
     p_manual -> p_auto2 'then whatever the groups left'
-    p_entry -> p_placement
-    p_manual -> p_placement
     p_auto2 -> p_placement
-    p_runtime -> p_placement
 
     p_placement -> p_loadgraph
     p_link -> p_loadgraph 'symbol relationships'

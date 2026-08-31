@@ -80,9 +80,9 @@ npm run png        # export out/*.png
 
 `npm run png` renders through a headless chromium; the first run needs
 `./node_modules/.bin/playwright install chromium-headless-shell`. Its canvas
-clips at 16384px. The `index` view uses `size sm` to keep the content around
-15.6k wide, which leaves roughly half a column of headroom; past that the right
-edge of the export is cut. `npm run dev` has no such limit.
+clips at 16384px. Both views use `size sm` and a tightened `autoLayout`, which
+keeps `index` around 14.8k wide; past the limit the right edge of the export is
+cut. `npm run dev` has no such limit.
 
 ## Provenance
 

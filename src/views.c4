@@ -21,7 +21,7 @@ views {
       which is off by default.
     '
     include proposed.*, now.*
-    autoLayout LeftRight
+    autoLayout LeftRight 40 30
 
     style * {
       color slate
@@ -60,7 +60,7 @@ views {
       "(strict)" marks a step that exists only under output.strictExecutionOrder.
     '
     include *
-    autoLayout LeftRight
+    autoLayout LeftRight 40 30
 
     style * {
       color slate
