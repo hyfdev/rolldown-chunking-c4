@@ -61,8 +61,11 @@ model {
       description '
         The modules a group matches go into that group chunk.
 
-        Takes precedence over the automatic rule for those modules. The two are
-        branches of one partition, not two phases.
+        Runs first, because what it claims is only known after its group-level rules
+        are settled: a group under the minimum size is dropped whole and hands its
+        modules back, an oversized one splits and re-enters, and per-module filters
+        drop members. Those rules read the load sets, so they sit between that step
+        and the automatic rule.
       '
     }
 
@@ -239,7 +242,7 @@ model {
     p_auto1 -> p_entry
     p_auto1 -> p_runtime
     p_auto1 -> p_manual
-    p_auto1 -> p_auto2
+    p_manual -> p_auto2 'takes what manual left'
     p_entry -> p_placement
     p_manual -> p_placement
     p_auto2 -> p_placement
